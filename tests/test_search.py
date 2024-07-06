@@ -91,3 +91,4 @@ def test_error_text1(load_nlp_pipeline):
     res = search_text(txt, load_nlp_pipeline)
     print(res)
     assert len(res) == 3
+    assert False

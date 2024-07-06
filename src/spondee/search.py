@@ -43,7 +43,7 @@ def identify_statements(tree):
     return paths
 
 
-def concat_noun_phrase_text(txt: List[Tuple[str, str]]) -> str:
+def identify_nounphrase(txt: List[Tuple[str, str]]) -> str:
     """Breadth-First Search concatenates text using grammatical rules."""
     np = []
 
@@ -56,18 +56,9 @@ def concat_noun_phrase_text(txt: List[Tuple[str, str]]) -> str:
         tag, s = q.popleft()
         if tag == "DT" or tag[:3] == "PRP":
             continue
-
-        elif tag == ",":
-            np[-1] = f"{np[-1]}{s}"
-
-        elif tag == "HYPH":
-            np[-1] = f"{np[-1]}{s}{q[0][1]}"
-            q.popleft()
-
-        else:
-            np.append(s)
-
-    return " ".join(np), True
+            
+        np.append((tag,s))
+    return np, True
 
 
 def nounphrase_text(node) -> Tuple[str, bool]:
@@ -84,7 +75,7 @@ def nounphrase_text(node) -> Tuple[str, bool]:
         prev_label = node.label
 
     txt.reverse()  # word-order is left-to-right
-    return concat_noun_phrase_text(txt)
+    return identify_nounphrase(txt)
 
 
 def extract_noun_phrases(verb_phrase):
