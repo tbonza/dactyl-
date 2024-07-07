@@ -16,3 +16,23 @@ class Numeric(BaseModel):
     text: str = Field("Numeric value")
     start_char: int
     end_char: int
+
+
+class LeafLabel(BaseModel):
+    """Metadata provided by Stanza"""
+
+    id: int
+    text: str
+    upos: str
+    xpos: str
+    feats: str
+    start_char: int
+    end_char: int
+
+
+class SentenceMetadata(BaseModel):
+    sidx: int = Field("Simple sentence index position.")
+    subject: List[LeafLabel] = Field(default=[])
+    predicate: List[LeafLabel] = Field(default=[])
+    subject_noun_phrases: List[List[LeafLabel]] = Field(default=[])
+    predicate_noun_phrases: List[List[LeafLabel]] = Field(default=[])

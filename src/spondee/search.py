@@ -5,11 +5,11 @@ References:
 """
 
 from collections import deque
-from typing import List, Tuple
+from typing import List
 
 import stanza
 
-from spondee.schemas import Sentence
+from spondee.schemas import LeafLabel, Sentence, SentenceMetadata
 
 
 def nlp_pipeline():
@@ -43,109 +43,149 @@ def identify_statements(tree):
     return paths
 
 
-def identify_nounphrase(txt: List[Tuple[str, str]]) -> str:
-    """Breadth-First Search concatenates text using grammatical rules."""
-    np = []
-
-    noun_tags = set(["NN", "NNS", "NNP", "NNPS"])
-    if len(noun_tags & set([tag for tag, _ in txt])) == 0:
-        return "", False
-
-    q = deque(txt)
-    while q:
-        tag, s = q.popleft()
-        if tag == "DT" or tag[:3] == "PRP":
-            continue
-            
-        np.append((tag,s))
-    return np, True
-
-
-def nounphrase_text(node) -> Tuple[str, bool]:
-    """Depth first search recovers child node and parent label."""
-    txt = []
+def extract_node_label(node):
+    path = []
     stack = [node]
-    prev_label = node.label
+    prev_label = None
     while stack:
         node = stack.pop()
         if len(node.children) == 0:
-            txt.append((prev_label, node.label))
+            path.append((prev_label, node.label))
 
         stack.extend(node.children)
         prev_label = node.label
 
-    txt.reverse()  # word-order is left-to-right
-    return identify_nounphrase(txt)
+    path.reverse()
+    return path
 
 
-def extract_noun_phrases(verb_phrase):
-    """Extract noun phrases from within a verb phrase using BFS."""
-    noun_phrases = []
-    q = deque([verb_phrase])
+def extract_noun_phrases(node):
+    paths = []
+    q = deque([node])
     while q:
         node = q.popleft()
         if node.label == "NP":
-            txt, status = nounphrase_text(node)
-            if status:
-                noun_phrases.append(txt)
+            paths.append(extract_node_label(node))
 
         else:
             q.extend(node.children)
 
-    return noun_phrases
+    return paths
 
 
-def identify_triplets(paths):
-    compound = []
-    for noun_phrase, verb_phrase in paths:
-        np = extract_noun_phrases(noun_phrase)
-        vp = extract_noun_phrases(verb_phrase)
+def filter_noun_phrases(extracted_np):
+    noun_tags = set(["NN", "NNS", "NNP", "NNPS"])
+    extract_tags = set([t for t, _ in extracted_np])
 
-        compound.append((np, vp))
+    if len(noun_tags & extract_tags) == 0:
+        return []
 
-    return compound
+    first_tag, _ = extracted_np[0]
+    if first_tag == "DT" or first_tag[:3] == "PRP":
+        return extracted_np[1:]
 
-
-def extract_text(node):
-    txt = []
-    q = deque([node])
-    while q:
-        node = q.pop()
-        if len(node.children) == 0:
-            txt.append(node.label)
-
-        q.extend(node.children)
-
-    txt.reverse()
-    return txt
+    return extracted_np
 
 
-def sentence_slots(compound_phrases, sidx: int):
-    slots = []
-    for noun_phrase, verb_phrase in compound_phrases:
-        np = extract_noun_phrases(noun_phrase)
-        vp = extract_noun_phrases(verb_phrase)
+def nounphrase_metadata(npm, extract):
+    meta_q = deque(npm)
+    extract_q = deque(extract)
 
-        sentence = Sentence(
+    found = []
+    while extract_q:
+        tag, s = extract_q.popleft()
+
+        while meta_q:
+            _meta = meta_q.popleft()
+            if _meta["xpos"] == tag and _meta["text"] == s:
+                found.append(_meta)
+                break
+
+    return found
+
+
+def sentence_metadata(sidx: int, statements, simple_sentence: List[dict]):
+    paths = []
+    stack = statements
+    q = deque(simple_sentence)
+    while stack:
+        noun_phrase, verb_phrase = stack.pop()
+
+        _tagged_np = [filter_noun_phrases(r) for r in extract_noun_phrases(noun_phrase)]
+        _tagged_vp = [filter_noun_phrases(r) for r in extract_noun_phrases(verb_phrase)]
+
+        npq = deque(noun_phrase.leaf_labels())
+        vpq = deque(verb_phrase.leaf_labels())
+
+        _np = []
+        _vp = []
+
+        while npq or vpq:
+            _leaf = q.popleft()
+
+            if npq and npq[0] == _leaf["text"]:
+                _np.append(_leaf)
+                npq.popleft()
+
+            elif vpq and vpq[0] == _leaf["text"]:
+                _vp.append(_leaf)
+                vpq.popleft()
+
+        _found_np = []
+        for tagged in _tagged_np:
+            _meta = nounphrase_metadata(_np, tagged)
+            if len(_meta) > 0:
+                _found_np.append(_meta)
+
+        _found_vp = []
+        for tagged in _tagged_vp:
+            _meta = nounphrase_metadata(_vp, tagged)
+            if len(_meta) > 0:
+                _found_vp.append(_meta)
+
+        _sentence_meta = SentenceMetadata(
             sidx=sidx,
-            subject=np,
-            predicate=vp,
-            subject_text=extract_text(noun_phrase),
-            predicate_text=extract_text(verb_phrase),
+            subject=[LeafLabel.model_validate(m) for m in _np],
+            predicate=[LeafLabel.model_validate(m) for m in _vp],
+            subject_noun_phrases=[
+                [LeafLabel.model_validate(m) for m in item] for item in _found_np
+            ],
+            predicate_noun_phrases=[
+                [LeafLabel.model_validate(m) for m in item] for item in _found_vp
+            ],
         )
-        slots.append(sentence)
 
-    return slots
+        paths.append(_sentence_meta)
+
+    return paths
 
 
-def search_text(text: str, nlp_model):
-    results = []
-
-    doc = nlp_model(text)
-    trees = [s.constituency for s in doc.sentences]
-    for i, tree in enumerate(trees):
-        paths = identify_statements(tree)
-        slots = sentence_slots(compound_phrases=paths, sidx=i)
-        results.extend(slots)
-
-    return results
+# def sentence_slots(compound_phrases, sidx: int):
+#    slots = []
+#    for noun_phrase, verb_phrase in compound_phrases:
+#        np = extract_noun_phrases(noun_phrase)
+#        vp = extract_noun_phrases(verb_phrase)
+#
+#        sentence = Sentence(
+#            sidx=sidx,
+#            subject=np,
+#            predicate=vp,
+#            subject_text=extract_text(noun_phrase),
+#            predicate_text=extract_text(verb_phrase),
+#        )
+#        slots.append(sentence)
+#
+#    return slots
+#
+#
+# def search_text(text: str, nlp_model):
+#    results = []
+#
+#    doc = nlp_model(text)
+#    trees = [s.constituency for s in doc.sentences]
+#    for i, tree in enumerate(trees):
+#        paths = identify_statements(tree)
+#        slots = sentence_slots(compound_phrases=paths, sidx=i)
+#        results.extend(slots)
+#
+#    return results
