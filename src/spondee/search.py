@@ -134,25 +134,30 @@ def sentence_metadata(sidx: int, statements, simple_sentence: List[dict]):
         _found_np = []
         for tagged in _tagged_np:
             _meta = nounphrase_metadata(_np, tagged)
-            if len(_meta) > 0:
-                _found_np.append(_meta)
+            grp = []
+            for m in _meta:
+                grp.append(LeafLabel.model_validate(m))
+
+            if len(grp) > 0:
+                _found_np.append(grp)
 
         _found_vp = []
         for tagged in _tagged_vp:
             _meta = nounphrase_metadata(_vp, tagged)
-            if len(_meta) > 0:
-                _found_vp.append(_meta)
+            grp = []
+            for m in _meta:
+                grp.append(LeafLabel.model_validate(m))
 
+            if len(grp) > 0:
+                _found_vp.append(grp)
+
+        _sentence_meta = None
         _sentence_meta = SentenceMetadata(
             sidx=sidx,
             subject=[LeafLabel.model_validate(m) for m in _np],
             predicate=[LeafLabel.model_validate(m) for m in _vp],
-            subject_noun_phrases=[
-                [LeafLabel.model_validate(m) for m in item] for item in _found_np
-            ],
-            predicate_noun_phrases=[
-                [LeafLabel.model_validate(m) for m in item] for item in _found_vp
-            ],
+            subject_noun_phrases=_found_np,
+            predicate_noun_phrases=_found_vp,
         )
 
         paths.append(_sentence_meta)
@@ -160,32 +165,40 @@ def sentence_metadata(sidx: int, statements, simple_sentence: List[dict]):
     return paths
 
 
-# def sentence_slots(compound_phrases, sidx: int):
-#    slots = []
-#    for noun_phrase, verb_phrase in compound_phrases:
-#        np = extract_noun_phrases(noun_phrase)
-#        vp = extract_noun_phrases(verb_phrase)
-#
-#        sentence = Sentence(
-#            sidx=sidx,
-#            subject=np,
-#            predicate=vp,
-#            subject_text=extract_text(noun_phrase),
-#            predicate_text=extract_text(verb_phrase),
-#        )
-#        slots.append(sentence)
-#
-#    return slots
-#
-#
-# def search_text(text: str, nlp_model):
-#    results = []
-#
-#    doc = nlp_model(text)
-#    trees = [s.constituency for s in doc.sentences]
-#    for i, tree in enumerate(trees):
-#        paths = identify_statements(tree)
-#        slots = sentence_slots(compound_phrases=paths, sidx=i)
-#        results.extend(slots)
-#
-#    return results
+def sentence_slots(compound_phrases, sidx: int):
+   slots = []
+   for noun_phrase, verb_phrase in compound_phrases:
+       np = extract_noun_phrases(noun_phrase)
+       vp = extract_noun_phrases(verb_phrase)
+
+       sentence = Sentence(
+           sidx=sidx,
+           subject=np,
+           predicate=vp,
+           subject_text=extract_text(noun_phrase),
+           predicate_text=extract_text(verb_phrase),
+       )
+       slots.append(sentence)
+
+   return slots
+
+
+def search_text(text: str, nlp_model):
+   results = []
+
+   doc = nlp_model(text)
+
+   for i, sentence in enumerate(doc.sentences):
+
+        tree = sentence.constituency
+        statements = identify_statements(tree)
+
+        paths = sentence_metadata(i, statements, sentence.to_dict())
+        for _meta in paths:
+            #Sentence(
+            #    sidx = _meta.sidx,
+            #    subject = 
+            #)
+            pass
+
+   return results

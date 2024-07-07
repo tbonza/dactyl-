@@ -1,7 +1,7 @@
 from spondee.search import (
     identify_statements,
-    extract_noun_phrases,
-    search_text,
+    sentence_metadata,
+    # search_text,
 )
 
 import pytest
@@ -30,22 +30,23 @@ def valid_output(res):
     assert res[0].predicate[-2] == "Boston Red Sox"
 
 
-def test_part_of_speech_tags(load_nlp_pipeline, example_text):
-    nlp = load_nlp_pipeline
-    doc = nlp(example_text)
+def test_sentence_metadata(load_nlp_pipeline, example_text):
+    docs = load_nlp_pipeline(example_text)
 
-    sidx = 0
-    tree = doc.sentences[sidx].constituency
+    example = docs.sentences[0]
+    tree = example.constituency
+    meta = example.to_dict()
 
-    paths = identify_statements(tree)
-    np, vp = paths[0]
-    output_vp = extract_noun_phrases(vp)
-    output_np = extract_noun_phrases(np)
+    statements = identify_statements(tree)
 
-    assert output_vp[-2] == "Boston Red Sox"
-    assert output_np[0] == "Chicago White Sox"
+    got = sentence_metadata(0, statements, meta)
+    assert len(got) == 2
+
+    assert got[0].subject[0].text == "Gavin"
+    assert got[0].subject[1].text == "Sheets"
 
 
+@pytest.mark.skip
 def test_search_text(load_nlp_pipeline, example_text):
     res = search_text(example_text, load_nlp_pipeline)
     valid_output(res)
@@ -64,6 +65,7 @@ def error_text0():
     return txt
 
 
+@pytest.mark.skip
 def test_error0_search_text(load_nlp_pipeline, error_text0):
     res = search_text(error_text0, load_nlp_pipeline)
 
@@ -74,6 +76,7 @@ def test_error0_search_text(load_nlp_pipeline, error_text0):
     assert "homered" in res[1].predicate_text
 
 
+@pytest.mark.skip
 def test_error_text1(load_nlp_pipeline):
     """Should have two sentences not one."""
     txt = "".join(

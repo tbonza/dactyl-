@@ -3,14 +3,6 @@ from typing import List
 from pydantic import BaseModel, Field
 
 
-class Sentence(BaseModel):
-    sidx: int = Field("Simple sentence index position.")
-    subject: List[str] = Field(default=[])
-    subject_text: List[str] = Field(default=[])
-    predicate: List[str] = Field(default=[])
-    predicate_text: List[str] = Field(default=[])
-
-
 class Numeric(BaseModel):
     sidx: int = Field("Simple sentence index position.")
     text: str = Field("Numeric value")
@@ -25,9 +17,10 @@ class LeafLabel(BaseModel):
     text: str
     upos: str
     xpos: str
-    feats: str
+    feats: str = Field(default="")
     start_char: int
     end_char: int
+    misc: str = Field(default="")
 
 
 class SentenceMetadata(BaseModel):
@@ -36,3 +29,10 @@ class SentenceMetadata(BaseModel):
     predicate: List[LeafLabel] = Field(default=[])
     subject_noun_phrases: List[List[LeafLabel]] = Field(default=[])
     predicate_noun_phrases: List[List[LeafLabel]] = Field(default=[])
+
+class Sentence(BaseModel):
+    sidx: int = Field("Simple sentence index position.")
+    subject: List[str] = Field(default=[])
+    subject_text: List[str] = Field(default=[])
+    predicate: List[str] = Field(default=[])
+    predicate_text: List[str] = Field(default=[])
