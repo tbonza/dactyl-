@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "spondee"
-version = "0.1.3"
+version = "0.1.4"
 description = "Sentence algorithms for Stanza"
 authors = ["tbonza <tylers.pile@gmail.com>"]
 license = "MIT"

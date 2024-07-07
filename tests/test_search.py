@@ -1,7 +1,7 @@
 from spondee.search import (
     identify_statements,
     sentence_metadata,
-    # search_text,
+    search_text,
 )
 
 import pytest
@@ -23,11 +23,13 @@ def example_text():
 def valid_output(res):
     assert len(res) == 2
 
-    assert res[1].subject == ["Gavin Sheets"]
-    assert res[1].predicate == ["first career grand slam"]
+    print(res)
 
-    assert res[0].subject == ["Chicago White Sox"]
-    assert res[0].predicate[-2] == "Boston Red Sox"
+    assert res[0].subject == ["Gavin Sheets"]
+    assert res[0].predicate == ["first career grand slam"]
+
+    assert res[1].subject == ["Chicago White Sox"]
+    assert res[1].predicate[-2] == "Boston Red Sox"
 
 
 def test_sentence_metadata(load_nlp_pipeline, example_text):
@@ -46,7 +48,6 @@ def test_sentence_metadata(load_nlp_pipeline, example_text):
     assert got[0].subject[1].text == "Sheets"
 
 
-@pytest.mark.skip
 def test_search_text(load_nlp_pipeline, example_text):
     res = search_text(example_text, load_nlp_pipeline)
     valid_output(res)
@@ -65,7 +66,6 @@ def error_text0():
     return txt
 
 
-@pytest.mark.skip
 def test_error0_search_text(load_nlp_pipeline, error_text0):
     res = search_text(error_text0, load_nlp_pipeline)
 
@@ -76,7 +76,6 @@ def test_error0_search_text(load_nlp_pipeline, error_text0):
     assert "homered" in res[1].predicate_text
 
 
-@pytest.mark.skip
 def test_error_text1(load_nlp_pipeline):
     """Should have two sentences not one."""
     txt = "".join(

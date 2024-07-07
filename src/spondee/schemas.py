@@ -30,9 +30,10 @@ class SentenceMetadata(BaseModel):
     subject_noun_phrases: List[List[LeafLabel]] = Field(default=[])
     predicate_noun_phrases: List[List[LeafLabel]] = Field(default=[])
 
+
 class Sentence(BaseModel):
     sidx: int = Field("Simple sentence index position.")
     subject: List[str] = Field(default=[])
-    subject_text: List[str] = Field(default=[])
     predicate: List[str] = Field(default=[])
-    predicate_text: List[str] = Field(default=[])
+    subject_text: str = Field(default="")
+    predicate_text: str = Field(default="")

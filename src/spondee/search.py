@@ -165,40 +165,41 @@ def sentence_metadata(sidx: int, statements, simple_sentence: List[dict]):
     return paths
 
 
-def sentence_slots(compound_phrases, sidx: int):
-   slots = []
-   for noun_phrase, verb_phrase in compound_phrases:
-       np = extract_noun_phrases(noun_phrase)
-       vp = extract_noun_phrases(verb_phrase)
-
-       sentence = Sentence(
-           sidx=sidx,
-           subject=np,
-           predicate=vp,
-           subject_text=extract_text(noun_phrase),
-           predicate_text=extract_text(verb_phrase),
-       )
-       slots.append(sentence)
-
-   return slots
-
-
 def search_text(text: str, nlp_model):
-   results = []
+    results = []
 
-   doc = nlp_model(text)
+    doc = nlp_model(text)
+    _slice = lambda x: (0, 0) if len(x) == 0 else (x[0].start_char, x[-1].end_char)
 
-   for i, sentence in enumerate(doc.sentences):
-
+    for i, sentence in enumerate(doc.sentences):
         tree = sentence.constituency
         statements = identify_statements(tree)
 
         paths = sentence_metadata(i, statements, sentence.to_dict())
-        for _meta in paths:
-            #Sentence(
-            #    sidx = _meta.sidx,
-            #    subject = 
-            #)
-            pass
+        for smeta in paths:
+            start_char, end_char = _slice(smeta.subject)
+            _subject_text = text[start_char:end_char]
 
-   return results
+            start_char, end_char = _slice(smeta.predicate)
+            _predicate_text = text[start_char:end_char]
+
+            _subject_np = []
+            for subject_np in smeta.subject_noun_phrases:
+                start_char, end_char = _slice(subject_np)
+                _subject_np.append(text[start_char:end_char])
+
+            _predicate_np = []
+            for predicate_np in smeta.predicate_noun_phrases:
+                start_char, end_char = _slice(predicate_np)
+                _predicate_np.append(text[start_char:end_char])
+
+            sentence = Sentence(
+                sidx=smeta.sidx,
+                subject=_subject_np,
+                predicate=_predicate_np,
+                subject_text=_subject_text,
+                predicate_text=_predicate_text,
+            )
+            results.append(sentence)
+
+    return results
